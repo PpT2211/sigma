@@ -24,18 +24,46 @@ tags:
     - attack.t1543.003
 logsource:
     product: windows
-    service: security
 detection:
-    selection_eventid:
-        EventID: 4697
+    selection_event:
+        - Channel: 'Security'
+          EventID: 4697
+        - Channel: 'System'
+          Provider_Name: 'Service Control Manager'
+          EventID: 7045
     selection_vbox_names:
-        ServiceName|contains: [vboxguest, vboxmouse, vboxsf, vboxservice, vboxvideo, vboxwddm]
+        ServiceName|contains:
+            - 'vboxguest'
+            - 'vboxmouse'
+            - 'vboxsf'
+            - 'vboxservice'
+            - 'vboxvideo'
+            - 'vboxwddm'
     filter_legit_path:
-        ServiceFileName|contains:
-            - 'program files\oracle\virtualbox'
-            - '\system32\drivers\vbox'
-            - '\system32\vboxservice'
+        - ServiceFileName|contains:     # 4697 (Security)
+              - 'program files\oracle\virtualbox'
+              - 'system32\drivers\vbox'
+              - 'system32\vboxservice'
+        - ImagePath|contains:           # 7045 (System)
+              - 'program files\oracle\virtualbox'
+              - 'system32\drivers\vbox'
+              - 'system32\vboxservice'
     selection_driver_type_mismatch:
-        ServiceName|contains: [vboxguest, vboxmouse, vboxsf, vboxvideo, vboxwddm]
-        ServiceType: ['user mode service', 'win32 own process', 16, 32]
-    condition: (selection_eventid and selection_vbox_names and not filter_legit_path) or selection_driver_type_mismatch
+        ServiceName|contains:
+            - 'vboxguest'
+            - 'vboxmouse'
+            - 'vboxsf'
+            - 'vboxvideo'
+            - 'vboxwddm'
+        ServiceType:
+            - 'user mode service'
+            - 'win32 own process'
+            - '0x10'
+            - '0x20'
+            - 16
+            - 32
+    condition: selection_event and ((selection_vbox_names and not filter_legit_path) or selection_driver_type_mismatch)
+falsepositives:
+    - Non-standard but legitimate VirtualBox installs (custom install directory). Tune filter_legit_path to your environment
+    - Endpoint tooling that re-registers/repairs VirtualBox Guest Additions services outside the default path
+level: high
